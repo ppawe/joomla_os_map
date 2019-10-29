@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="2.5" client="site" method="upgrade">
+
+    <!-- Metadata -->
+    <name>OSMap</name>
+    <author>Pascal S.</author>
+    <creationDate>16.04.2019</creationDate>
+    <version>2.16</version>
+    <description>MOD_OSMap_DESCRIPTION</description>
+
+    <!-- Update servers -->
+
+
+    <!-- Front-end files -->
+    <files>
+        <folder>tmpl</folder>
+        <filename>mod_osmap.xml</filename>
+        <filename module="mod_osmap">mod_osmap.php</filename>
+        <filename>helper.php</filename>
+        <filename>index.html</filename>
+    </files>
+
+    <!-- Media files -->
+    <media destination="mod_osMap">
+        <filename>script.js</filename>
+        <folder>search</folder>
+    </media>
+
+    <!-- Configuration -->
+    <config>
+      <fields name="params">
+        <fieldset name="basic">
+          <field type="text" label="Klassen" name="moduleClass" />
+          <field type="number" label="Höhe Map" name="myHeight" />
+          <field type="textarea" label="Pins: " name="pins" />
+          <field name="popups" type="textarea" default="" label="Popup: " filter="raw" />
+        </fieldset>
+        <fieldset name="myTable" label="Tabellen">
+          <field type="checkbox" name="tabelRightOn" label="Tabelle Rechts" value="1"/>
+		  <field type="checkbox" name="tabelBottomOn" label="Tabelle Unten" value="1"/>
+          <field type="editor" name="Table_right" lable="Tabelle rechts:" showon="tabelRightOn:1" filter="raw"/>
+          <field type="editor" name="Table_bottom" lable="Tabelle unten:"  showon="tabelBottomOn:1" filter="raw"/>
+        </fieldset>
+      </fields>
+    </config>
+</extension>
