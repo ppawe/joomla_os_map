@@ -92,12 +92,14 @@ class ModOsmapHelper
     }
 
     private function getGeo($association){
-        $long = "";
-        $lat = "";
-        $id = $association->id;
-
+/**
+ *  gets the lat and long from the db or the api
+ *
+ *   @param object $association: one com_contact object (with category 'Vereine')
+ *   @return: Array [$lat, $long]
+ *   @rtype: Array
+ */
         #get the lat and long field from the db
-
         $customFields = FieldsHelper::getFields('com_contact.contact', $association, true);
         $long = $customFields[0]->value;
         $lat = $customFields[1]->value;
@@ -115,8 +117,9 @@ class ModOsmapHelper
                 $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 var_dump(curl_getinfo($ch, CURLINFO_HEADER_OUT));
                 curl_close($ch);
+
                 #if the api cant find the address make a new call (only with postcode and city)
-                if (!$resultStatus == 429) {
+                if ($resultStatus != 429) {
                     if (!$content[0] || !property_exists($content[0], "lon")) {
                         $query = str_replace(" ", "+",
                             "$association->postcode+$association->suburb");
@@ -136,12 +139,13 @@ class ModOsmapHelper
                             $long = $place->lon;
                             break;
                         }
+
                         # update the lat long fields (db)
                         if ($long && $lat) {
                             $customFields[0]->value = $long;
                             $customFields[1]->value = $lat;
-                            $this->db->updateObject('#__fields_values', $customFields[0], 'field_id');
-                            $this->db->updateObject('#__fields_values', $customFields[1], 'field_id');
+                            $this->db->updateObject('#__fields_values', $customFields[0], 'field_id', 'item_id');
+                            $this->db->updateObject('#__fields_values', $customFields[1], 'field_id', 'item_id');
                         }
 
                     }
@@ -175,6 +179,12 @@ class ModOsmapHelper
 
     public function getAssociationNameTable()
     {
+        /**
+         *  creates the Chor/Name table
+         *
+         *   @return: Array ['Head' => [Table Head], '$name' => [Table rows], ...]
+         *   @rtype: Array
+         */
         #creates table
         $table_rows = [];
         $table_rows['Head'] = ["Chor", "Name"];
@@ -198,6 +208,12 @@ class ModOsmapHelper
 
     public function getAssociationLocationTable()
     {
+        /**
+         *  creates the PLZ/Verein table
+         *
+         *   @return: Array ['Head' => [Table Head], '$name' => [Table rows], ...]
+         *   @rtype: Array
+         */
         #creates table
         $table_rows = [];
         $odd = true;
@@ -220,6 +236,13 @@ class ModOsmapHelper
     }
 
     private function createDescription($association){
+        /**
+         *  creates the text for the popup
+         *
+         *   @param object $association: one com_contact object (with category 'Vereine')
+         *   @return: String
+         *   @rtype: String
+         */
         #creates popup text
         if (!$association) return "";
         $desc = ["<h4>$association->name</h4>"];
