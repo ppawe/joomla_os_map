@@ -98,11 +98,14 @@ class ModOsmapHelper
         $sql = "select * from #__fields_values WHERE `item_id` = $id";
         $this->db->setQuery($sql);
         $r = $this->db->loadObjectList();
+
+        #get the lat and long field from the db
         foreach ($r as $field){
             if ($field->field_id == "1") $long = $field->value;
             if ($field->field_id == "2") $lat = $field->value;
         }
 
+        # if lat/long not saved in db call api to get the lat long
         if (!$long || !$lat) {
                 $query = str_replace(" ", "+",
                     "$association->address+$association->postcode+$association->suburb");
@@ -112,16 +115,31 @@ class ModOsmapHelper
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
                 $content = curl_exec($ch);
+                $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
+
+                #if the api cant find the address make a new call (only with postcode and city)
+                if (!$content[0] || !property_exists($content[0],"lon")){
+                    $query = str_replace(" ", "+",
+                        "$association->postcode+$association->suburb");
+                    $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+                    $content = curl_exec($ch);
+                    $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                }
                 $content = json_decode($content);
-                if ($content) {
+
+                if (property_exists($content[0],"lon")) {
                     foreach ($content as $place) {
                         $lat = $place->lat;
                         $long = $place->lon;
-                        print $lat."<br>".$long."<br>-------------<br>";
                         break;
                     }
-
+                    # update the lat long fields (db)
                     if ($long && $lat) {
                         $query = $this->db->getQuery(true);
                         $fieldsLat = array(
@@ -154,16 +172,13 @@ class ModOsmapHelper
                         $result = $this->db->execute();
                     }
                 }
-                else{
-                    var_dump($content);
-                }
         }
         return [$lat,$long];
     }
 
     private function _get_contacts()
     {
-        # gets all
+        # gets all contacts with category 'Vereine'
         if (!$this->category_id) return null;
 
         $sql = "SELECT * FROM #__contact_details WHERE `catid` = $this->category_id";
@@ -178,6 +193,7 @@ class ModOsmapHelper
     }
 
     private function getUser($id){
+        #gets user id
         $sql = "SELECT name FROM #__users WHERE `id` = $id";
         $this->db->setQuery($sql);
         return $this->db->loadResult();
@@ -185,6 +201,7 @@ class ModOsmapHelper
 
     public function getAssociationNameTable()
     {
+        #creates table
         $table_rows = [];
         $table_rows['Head'] = ["Chor", "Name"];
         $odd = true;
@@ -197,7 +214,7 @@ class ModOsmapHelper
 
                     "<button class='verein-finden-button' onclick='goToPopup(" . $name . ")'>".
                     "$user<i class='fas fa-search'></i><i class='fas fa-circle'></i></button>".
-                    "</p><p>$association->email</p>"
+                    "</p><p>$association->email_to</p>"
                 ];
             $table_rows[$name] = $str;
         }
@@ -207,6 +224,7 @@ class ModOsmapHelper
 
     public function getAssociationLocationTable()
     {
+        #creates table
         $table_rows = [];
         $odd = true;
         if (!$this->associations) return "";
@@ -228,6 +246,7 @@ class ModOsmapHelper
     }
 
     private function createDescription($association){
+        #creates popup text
         if (!$association) return "";
         $desc = ["<h4>$association->name</h4>"];
         if ($association->misc) array_push($desc,"$association->misc</br>");
@@ -243,6 +262,7 @@ class ModOsmapHelper
 
     private function mpPopups()
     {
+        #creates popups
         $ret = "";
         $pop = "";
         if (!$this->associations) return "";
@@ -263,13 +283,13 @@ class ModOsmapHelper
             }
         }
 
-        // Code zurückgeben
         return $ret;
     }
 
     //Multi-marker: Code for multiple markers
     private function mpPins()
     {
+        #creates pins
         $ret = "";
         $pins = "";
         foreach ($this->associations as $association){
@@ -281,40 +301,40 @@ class ModOsmapHelper
 
             if (!$cords) continue;
             $pins .= "#$name{($lat,$long),,{#$name_pop,click}};\n";
+            print "<br>".$association->name."<br>".$lat."<br>".$long;
         }
 
-        // Wenn keine Pins gegben sind, abbrechen
+        // when no pins
         if ($pins == '') return '';
 
-        // Einzelne Einträge trennen
         $exp = explode(';', $pins);
         array_pop($exp);
-        // Pins parsen
+        // parse pins
         foreach ($exp as $pin) {
             if ($pin != '') {
-                preg_match('/#(?P<name>\w+)\s*\{\s*\(\s*(?P<coords>\-?\d+\.?\d*\s*\,\s*\-?\d+\.?\d*\s*)\)\s*\,\s*(?:#(?P<skin>\w+))?\s*\,\s*(?:\{\s*#(?P<popup>\w+)\s*\,\s*(?P<show>click|always|immediately)\s*\})?\s*\}/', $pin, $treffer);
+                if (preg_match('/#(?P<name>\w+)\s*\{\s*\(\s*(?P<coords>\-?\d+\.?\d*\s*\,\s*\-?\d+\.?\d*\s*)\)\s*\,\s*(?:#(?P<skin>\w+))?\s*\,\s*(?:\{\s*#(?P<popup>\w+)\s*\,\s*(?P<show>click|always|immediately)\s*\})?\s*\}/', $pin, $treffer)){
+                    $ret .= "var mpK" . $id . "_" . $treffer['name'] . "  = new L.LatLng(" . $treffer['coords'] . ");\n";                // Koordinaten anlegen
+                    $cp = '';
+                    if ($treffer['skin'] != '') $cp = ", {icon: new mpC" . $id . "_" . $treffer['skin'] . "()}";          // Custom Icon verknüpfen
+                    $ret .= "var mpM" . $id . "_" . $treffer['name'] . " = new L.Marker(mpK" . $id . "_" . $treffer['name'] . $cp . ");\n";    // Marker anlegen
+                    $ret .= "myMap.addLayer(mpM" . $id . "_" . $treffer['name'] . ");\n";                                       // Marker auf Karte setzen
 
-                $ret .= "var mpK" . $id . "_" . $treffer['name'] . "  = new L.LatLng(" . $treffer['coords'] . ");\n";                // Koordinaten anlegen
-                $cp = '';
-                if ($treffer['skin'] != '') $cp = ", {icon: new mpC" . $id . "_" . $treffer['skin'] . "()}";          // Custom Icon verknüpfen
-                $ret .= "var mpM" . $id . "_" . $treffer['name'] . " = new L.Marker(mpK" . $id . "_" . $treffer['name'] . $cp . ");\n";    // Marker anlegen
-                $ret .= "myMap.addLayer(mpM" . $id . "_" . $treffer['name'] . ");\n";                                       // Marker auf Karte setzen
-
-                // Popup verknüpfen
-                if ($treffer['popup'] != '') {
-                    $ret .= "mpM" . $id . "_" . $treffer['name'] . ".bindPopup(mpP" . $id . "_" . $treffer['popup'] . ");\n";
-                    if ($treffer['show'] == 'always' | $treffer['show'] == 'immediately') {
-                        $ret .= "mpM" . $id . "_" . $treffer['name'] . ".openPopup();\n";
+                    // Popup verknüpfen
+                    if ($treffer['popup'] != '') {
+                        $ret .= "mpM" . $id . "_" . $treffer['name'] . ".bindPopup(mpP" . $id . "_" . $treffer['popup'] . ");\n";
+                        if ($treffer['show'] == 'always' | $treffer['show'] == 'immediately') {
+                            $ret .= "mpM" . $id . "_" . $treffer['name'] . ".openPopup();\n";
+                        }
                     }
                 }
             }
         }
-        // Code zurück geben
         return $ret;
     }
 
     public function getJS()
     {
+        #creates the js for the map
         $js = "";
         $js .= "var myMapId = document.getElementById('$this->id');" . "\n";
         $js .= 'var myMap = L.map(myMapId).setView([48.8750498,9.6346291],12);' . "\n";
