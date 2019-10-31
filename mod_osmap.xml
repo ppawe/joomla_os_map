@@ -23,7 +23,7 @@
     <!-- Media files -->
     <media destination="mod_osMap">
         <filename>script.js</filename>
-        <folder>search</folder>
+        <filename>dataTables.min.css</filename>
     </media>
 
     <!-- Configuration -->
@@ -32,14 +32,10 @@
         <fieldset name="basic">
           <field type="text" label="Klassen" name="moduleClass" />
           <field type="number" label="Höhe Map" name="myHeight" />
-          <field type="textarea" label="Pins: " name="pins" />
-          <field name="popups" type="textarea" default="" label="Popup: " filter="raw" />
         </fieldset>
         <fieldset name="myTable" label="Tabellen">
           <field type="checkbox" name="tabelRightOn" label="Tabelle Rechts" value="1"/>
 		  <field type="checkbox" name="tabelBottomOn" label="Tabelle Unten" value="1"/>
-          <field type="editor" name="Table_right" lable="Tabelle rechts:" showon="tabelRightOn:1" filter="raw"/>
-          <field type="editor" name="Table_bottom" lable="Tabelle unten:"  showon="tabelBottomOn:1" filter="raw"/>
         </fieldset>
       </fields>
     </config>
