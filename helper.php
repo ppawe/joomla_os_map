@@ -95,15 +95,12 @@ class ModOsmapHelper
         $long = "";
         $lat = "";
         $id = $association->id;
-        $sql = "select * from #__fields_values WHERE `item_id` = $id";
-        $this->db->setQuery($sql);
-        $r = $this->db->loadObjectList();
 
         #get the lat and long field from the db
-        foreach ($r as $field){
-            if ($field->field_id == "1") $long = $field->value;
-            if ($field->field_id == "2") $lat = $field->value;
-        }
+
+        $customFields = FieldsHelper::getFields('com_contact.contact', $association, true);
+        $long = $customFields[0]->value;
+        $lat = $customFields[1]->value;
 
         # if lat/long not saved in db call api to get the lat long
         if (!$long || !$lat) {
@@ -116,60 +113,37 @@ class ModOsmapHelper
                 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
                 $content = curl_exec($ch);
                 $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                var_dump(curl_getinfo($ch, CURLINFO_HEADER_OUT));
                 curl_close($ch);
-
                 #if the api cant find the address make a new call (only with postcode and city)
-                if (!$content[0] || !property_exists($content[0],"lon")){
-                    $query = str_replace(" ", "+",
-                        "$association->postcode+$association->suburb");
-                    $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, $url);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
-                    $content = curl_exec($ch);
-                    $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-                }
-                $content = json_decode($content);
-
-                if (property_exists($content[0],"lon")) {
-                    foreach ($content as $place) {
-                        $lat = $place->lat;
-                        $long = $place->lon;
-                        break;
+                if (!$resultStatus == 429) {
+                    if (!$content[0] || !property_exists($content[0], "lon")) {
+                        $query = str_replace(" ", "+",
+                            "$association->postcode+$association->suburb");
+                        $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $url);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+                        $content = curl_exec($ch);
+                        $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
                     }
-                    # update the lat long fields (db)
-                    if ($long && $lat) {
-                        $query = $this->db->getQuery(true);
-                        $fieldsLat = array(
-                            $this->db->quoteName('value') . ' = ' . $lat,
-                        );
-                        $fieldsLong = array(
-                            $this->db->quoteName('value') . ' = ' . $long,
-                        );
-                        $conditionsLat = array(
-                            $this->db->quoteName('item_id') . ' = ' . $id,
-                            $this->db->quoteName('field_id') . ' = ' . '2'
-                        );
-                        $conditionsLong = array(
-                            $this->db->quoteName('item_id') . ' = ' . $id,
-                            $this->db->quoteName('field_id') . ' = ' . '1'
-                        );
+                    $content = json_decode($content);
+                    if (property_exists($content[0], "lon")) {
+                        foreach ($content as $place) {
+                            $lat = $place->lat;
+                            $long = $place->lon;
+                            break;
+                        }
+                        # update the lat long fields (db)
+                        if ($long && $lat) {
+                            $customFields[0]->value = $long;
+                            $customFields[1]->value = $lat;
+                            $this->db->updateObject('#__fields_values', $customFields[0], 'field_id');
+                            $this->db->updateObject('#__fields_values', $customFields[1], 'field_id');
+                        }
 
-                        $query->update($this->db->quoteName('#__fields_values'))->set($fieldsLat)->where($conditionsLat);
-
-                        $this->db->setQuery($query);
-
-                        $result = $this->db->execute();
-
-                        $query = $this->db->getQuery(true);
-
-                        $query->update($this->db->quoteName('#__fields_values'))->set($fieldsLong)->where($conditionsLong);
-
-                        $this->db->setQuery($query);
-
-                        $result = $this->db->execute();
                     }
                 }
         }
@@ -279,7 +253,7 @@ class ModOsmapHelper
             if ($p != '') {
                 preg_match('/#(?P<name>\w+)\s*\{\s*(?P<text>.*)\s*\}/', $p . '}', $treffer);
                 $text = str_replace("'", "\\'", str_replace(array("\r\n", "\n", "\r"), "", $treffer['text']));
-                $ret .= "var mpP" . $id . "_" . $treffer['name'] . " = '" . $text . "';\n";
+                $ret .= "var mpP" . "_" . $treffer['name'] . " = '" . $text . "';\n";
             }
         }
 
@@ -301,7 +275,6 @@ class ModOsmapHelper
 
             if (!$cords) continue;
             $pins .= "#$name{($lat,$long),,{#$name_pop,click}};\n";
-            print "<br>".$association->name."<br>".$lat."<br>".$long;
         }
 
         // when no pins
@@ -313,17 +286,17 @@ class ModOsmapHelper
         foreach ($exp as $pin) {
             if ($pin != '') {
                 if (preg_match('/#(?P<name>\w+)\s*\{\s*\(\s*(?P<coords>\-?\d+\.?\d*\s*\,\s*\-?\d+\.?\d*\s*)\)\s*\,\s*(?:#(?P<skin>\w+))?\s*\,\s*(?:\{\s*#(?P<popup>\w+)\s*\,\s*(?P<show>click|always|immediately)\s*\})?\s*\}/', $pin, $treffer)){
-                    $ret .= "var mpK" . $id . "_" . $treffer['name'] . "  = new L.LatLng(" . $treffer['coords'] . ");\n";                // Koordinaten anlegen
+                    $ret .= "var mpK" . "_" . $treffer['name'] . "  = new L.LatLng(" . $treffer['coords'] . ");\n";                // Koordinaten anlegen
                     $cp = '';
-                    if ($treffer['skin'] != '') $cp = ", {icon: new mpC" . $id . "_" . $treffer['skin'] . "()}";          // Custom Icon verknüpfen
-                    $ret .= "var mpM" . $id . "_" . $treffer['name'] . " = new L.Marker(mpK" . $id . "_" . $treffer['name'] . $cp . ");\n";    // Marker anlegen
-                    $ret .= "myMap.addLayer(mpM" . $id . "_" . $treffer['name'] . ");\n";                                       // Marker auf Karte setzen
+                    if ($treffer['skin'] != '') $cp = ", {icon: new mpC" . "_" . $treffer['skin'] . "()}";          // Custom Icon verknüpfen
+                    $ret .= "var mpM" . "_" . $treffer['name'] . " = new L.Marker(mpK" . "_" . $treffer['name'] . $cp . ");\n";    // Marker anlegen
+                    $ret .= "myMap.addLayer(mpM" . "_" . $treffer['name'] . ");\n";                                       // Marker auf Karte setzen
 
                     // Popup verknüpfen
                     if ($treffer['popup'] != '') {
-                        $ret .= "mpM" . $id . "_" . $treffer['name'] . ".bindPopup(mpP" . $id . "_" . $treffer['popup'] . ");\n";
+                        $ret .= "mpM" . "_" . $treffer['name'] . ".bindPopup(mpP" . "_" . $treffer['popup'] . ");\n";
                         if ($treffer['show'] == 'always' | $treffer['show'] == 'immediately') {
-                            $ret .= "mpM" . $id . "_" . $treffer['name'] . ".openPopup();\n";
+                            $ret .= "mpM" . "_" . $treffer['name'] . ".openPopup();\n";
                         }
                     }
                 }
