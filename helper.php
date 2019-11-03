@@ -33,6 +33,7 @@ class ModOsmapHelper
         $this->category_id = $this->_get_category();
         $this->associations = $this->_get_contacts();
         if ($this->associations) {
+            $this->generatePopupsAndPins();
             $this->popups = $this->mpPopups();
             $this->pins = $this->mpPins();
         }
@@ -100,56 +101,89 @@ class ModOsmapHelper
  *   @rtype: Array
  */
         #get the lat and long field from the db
-        $customFields = FieldsHelper::getFields('com_contact.contact', $association, true);
-        $long = $customFields[0]->value;
-        $lat = $customFields[1]->value;
+        $query = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__maplatlong'))
+            ->where('item_id = ' . $association->id);
+        $this->db->setQuery($query);
+        $fields = $this->db->loadObject();
+        $lat = "";
+        $long = "";
 
         # if lat/long not saved in db call api to get the lat long
-        if (!$long || !$lat) {
-                $query = str_replace(" ", "+",
-                    "$association->address+$association->postcode+$association->suburb");
-                $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
-                $content = curl_exec($ch);
-                $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                var_dump(curl_getinfo($ch, CURLINFO_HEADER_OUT));
-                curl_close($ch);
-
-                #if the api cant find the address make a new call (only with postcode and city)
-                if ($resultStatus != 429) {
-                    if (!$content[0] || !property_exists($content[0], "lon")) {
-                        $query = str_replace(" ", "+",
-                            "$association->postcode+$association->suburb");
-                        $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
-                        $ch = curl_init();
-                        curl_setopt($ch, CURLOPT_URL, $url);
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
-                        $content = curl_exec($ch);
-                        $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        curl_close($ch);
-                    }
+        if ($fields) {
+            $lat = $fields->lat;
+            $long = $fields->long;
+        }
+        if (!$lat || !$long){
+            $query = str_replace(" ", "+",
+                "$association->address+$association->postcode+$association->suburb");
+            $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+            $content = curl_exec($ch);
+            $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            $content = json_decode($content);
+            #if the api cant find the address make a new call (only with postcode and city)
+            if ($resultStatus != 429) {
+                if (!$content[0] || !property_exists($content[0], "lon")) {
+                    $query = str_replace(" ", "+",
+                        "$association->postcode+$association->suburb");
+                    $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+                    $content = curl_exec($ch);
+                    $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
                     $content = json_decode($content);
-                    if (property_exists($content[0], "lon")) {
-                        foreach ($content as $place) {
-                            $lat = $place->lat;
-                            $long = $place->lon;
-                            break;
-                        }
+                }
 
-                        # update the lat long fields (db)
-                        if ($long && $lat) {
-                            $customFields[0]->value = $long;
-                            $customFields[1]->value = $lat;
-                            $this->db->updateObject('#__fields_values', $customFields[0], 'field_id', 'item_id');
-                            $this->db->updateObject('#__fields_values', $customFields[1], 'field_id', 'item_id');
-                        }
+                if (property_exists($content[0], "lon")) {
+                    foreach ($content as $place) {
+                        $lat = $place->lat;
+                        $long = $place->lon;
+                        break;
+                    }
 
+                    # update the lat long fields (db)
+                    if ($long && $lat) {
+
+                        if ($fields){
+
+// Fields to update.
+                            $object = new stdClass();
+
+// Must be a valid primary key value.
+                            $object->id = $fields->id;
+                            $object->item_id = $association->id;
+                            $object->lat = $lat;
+                            $object->long = $long;
+
+// Update their details in the users table using id as the primary key.
+                            $result = JFactory::getDbo()->updateObject('#__maplatlong', $object, 'id');
+                        }else{
+                            $query = $this->db->getQuery(true);
+                            // Insert columns.
+                            $columns = array('item_id', 'lat', 'long');
+
+                            // Insert values.
+                            $values = array($association->id, $lat, $long);
+                            $query
+                                ->insert($this->db->quoteName('#__maplatlong'))
+                                ->columns($this->db->quoteName($columns))
+                                ->values(implode(',', $values));
+
+                            $this->db->setQuery($query);
+                            $this->db->execute();
+                        }
                     }
                 }
+            }
         }
         return [$lat,$long];
     }
@@ -165,8 +199,8 @@ class ModOsmapHelper
     }
 
     private function convertName($name){
-        $search = array("Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "´"," ",".","-","+","/",",",";");
-        $replace = array("Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "","","","","","","","");
+        $search = array("Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "´"," ",".","-","+","/",",",";",'"',"'");
+        $replace = array("Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "","","","","","","","","","");
         return str_replace($search,$replace,$name);
     }
 
@@ -245,41 +279,73 @@ class ModOsmapHelper
          */
         #creates popup text
         if (!$association) return "";
-        $desc = ["<h4>$association->name</h4>"];
-        if ($association->misc) array_push($desc,"$association->misc</br>");
-        if ($association->postcode || $association->suburb) array_push($desc,
-            "$association->postcode $association->suburb</br>");
-        if ($association->address) array_push($desc, "$association->address</br>");
-        if ($association->user_id) array_push($desc, $this->getUser($association->user_id)."</br>");
-        if ($association->email_to) array_push($desc, "$association->email_to</br>");
-        if ($association->webpage) array_push($desc,
-            "<a href='$association->webpage' target='_blank'>Zur Webseite</a>");
-        return implode("",$desc);
+        $desc = "<h4>$association->name</h4>";
+        if ($association->misc){
+            $misc = str_replace("\n","",$association->misc);
+            $desc.= $misc;
+        }
+        if ($association->address) $desc.= "<i class=\"fas fa-address-book\"></i> $association->address</br>";
+        if ($association->postcode || $association->suburb)  $desc.= "<i class=\"fas fa-address-book\"></i> $association->postcode $association->suburb</br>";
+        if ($association->user_id) $desc.= "<i class=\"fas fa-user\"></i> ".$this->getUser($association->user_id)."</br>";
+        if ($association->email_to) $desc.= "<i class=\"fas fa-envelope\"></i> $association->email_to</br>";
+        if ($association->webpage) $desc.= "<i class=\"fas fa-globe\"></i> <a href='$association->webpage' target='_blank'>Zur Webseite</a>";
+        return $desc;
+    }
+
+    private function generatePopupsAndPins(){
+        $pop = "";
+        $pins = "";
+        $combinedPopups = [];
+
+        foreach ($this->associations as $association){
+            $name = $this->convertName($association->name);
+            $cords = $this->getGeo($association);
+            $long = $cords[1];
+            $lat = $cords[0];
+
+            if (isset($combinedPopups[$long.":".$lat])){
+                $combinedPopups[$long.":".$lat] = array_merge($combinedPopups[$long.":".$lat], [$association]);
+            }else{
+                $combinedPopups[$long.":".$lat] = [$association];
+                $name_pop = $name."Pop";
+
+                if (!$cords) continue;
+                $pins .= "#$name{($lat,$long),,{#$name_pop,click}};\n";
+            }
+        }
+        foreach ($combinedPopups as $associations){
+            if ($associations) {
+                $name = $name = $this->convertName($associations[0]->name) . "Pop";
+                $desc = "";
+                foreach ($associations as $association) {
+                    $desc .= $this->createDescription($association);
+                }
+                $pop .= "#" . $name . "{" . $desc . "};";
+            }
+        }
+        $this->pins = $pins;
+        $this->popups = $pop;
+
     }
 
     private function mpPopups()
     {
         #creates popups
         $ret = "";
-        $pop = "";
-        if (!$this->associations) return "";
-        foreach ($this->associations as $association){
-            $name = $this->convertName($association->name)."Pop";
-            $desc = $this->createDescription($association);
-            $pop .= "#".$name."{".$desc."};";
-        }
+        $pop = $this->popups;
+
 
         $exp = explode('};', $pop);
         array_pop($exp);
         // Popups parsen
         foreach ($exp as $p) {
             if ($p != '') {
-                preg_match('/#(?P<name>\w+)\s*\{\s*(?P<text>.*)\s*\}/', $p . '}', $treffer);
-                $text = str_replace("'", "\\'", str_replace(array("\r\n", "\n", "\r"), "", $treffer['text']));
-                $ret .= "var mpP" . "_" . $treffer['name'] . " = '" . $text . "';\n";
+                if (preg_match('/#(?P<name>\w+)\s*\{\s*(?P<text>.*)\s*\}/', $p . '}', $treffer)){
+                    $text = str_replace("'", "\\'", str_replace(array("\r\n", "\n", "\r"), "", $treffer['text']));
+                    $ret .= "var mpP" . "_" . $treffer['name'] . " = '" . $text . "';\n";
+                }
             }
         }
-
         return $ret;
     }
 
@@ -288,17 +354,8 @@ class ModOsmapHelper
     {
         #creates pins
         $ret = "";
-        $pins = "";
-        foreach ($this->associations as $association){
-            $name = $this->convertName($association->name);
-            $name_pop = $name."Pop";
-            $cords = $this->getGeo($association);
-            $long = $cords[1];
-            $lat = $cords[0];
+        $pins = $this->pins;
 
-            if (!$cords) continue;
-            $pins .= "#$name{($lat,$long),,{#$name_pop,click}};\n";
-        }
 
         // when no pins
         if ($pins == '') return '';

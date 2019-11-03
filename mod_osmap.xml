@@ -14,6 +14,7 @@
     <!-- Front-end files -->
     <files>
         <folder>tmpl</folder>
+        <folder>sql</folder>
         <filename>mod_osmap.xml</filename>
         <filename module="mod_osmap">mod_osmap.php</filename>
         <filename>helper.php</filename>
@@ -25,6 +26,27 @@
         <filename>script.js</filename>
         <filename>dataTables.min.css</filename>
     </media>
+
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/mysql/install.mysql.utf8.sql</file>
+            <file driver="sqlazure" charset="utf8">sql/sqlazure/install.sqlazure.utf8.sql</file>
+        </sql>
+    </install>
+
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/mysql/uninstall.mysql.utf8.sql</file>
+            <file driver="sqlazure" charset="utf8">sql/sqlazure/uninstall.sqlazure.utf8.sql</file>
+        </sql>
+    </uninstall>
+
+    <update>
+        <schemas>
+            <schemapath type="mysql">sql/mysql/updates</schemapath>
+            <schemapath type="sqlazure">sql/sqlazure/updates</schemapath>
+        </schemas>
+    </update>
 
     <!-- Configuration -->
     <config>
