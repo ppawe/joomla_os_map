@@ -293,6 +293,10 @@ class ModOsmapHelper
     }
 
     private function generatePopupsAndPins(){
+        /**
+         *  Creates the pins and popup string and combines pins and popups with the same position.
+         *  If we dont combine them, only the last pin would be clickable.
+         */
         $pop = "";
         $pins = "";
         $combinedPopups = [];
