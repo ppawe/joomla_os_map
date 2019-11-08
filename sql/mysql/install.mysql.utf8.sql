@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS `#__maplatlong`;
 CREATE TABLE `#__maplatlong` (
 	`id`       INT(11)     NOT NULL AUTO_INCREMENT,
 	`item_id` INT(11) NOT NULL,
+	`modified` datetime NOT NULL,
 	`lat` text NOT NULL,
 	`long` text NOT NULL,
 	PRIMARY KEY (`id`)

@@ -115,7 +115,7 @@ class ModOsmapHelper
             $lat = $fields->lat;
             $long = $fields->long;
         }
-        if (!$lat || !$long){
+        if (!$lat || !$long || $association->modified != $fields->modified){
             $query = str_replace(" ", "+",
                 "$association->address+$association->postcode+$association->suburb");
             $url = 'https://nominatim.openstreetmap.org/search.php?format=json&q=' . $query;
@@ -138,7 +138,6 @@ class ModOsmapHelper
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
                     $content = curl_exec($ch);
-                    $resultStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
                     $content = json_decode($content);
                 }
@@ -156,23 +155,20 @@ class ModOsmapHelper
                         if ($fields){
 
 // Fields to update.
-                            $object = new stdClass();
 
-// Must be a valid primary key value.
-                            $object->id = $fields->id;
-                            $object->item_id = $association->id;
-                            $object->lat = $lat;
-                            $object->long = $long;
+                            $fields->modified = $association->modified;
+                            $fields->lat = $lat;
+                            $fields->long = $long;
 
 // Update their details in the users table using id as the primary key.
-                            $result = JFactory::getDbo()->updateObject('#__maplatlong', $object, 'id');
+                            $result = JFactory::getDbo()->updateObject('#__maplatlong', $fields, 'id');
                         }else{
                             $query = $this->db->getQuery(true);
                             // Insert columns.
-                            $columns = array('item_id', 'lat', 'long');
+                            $columns = array('item_id', 'modified', 'lat', 'long');
 
                             // Insert values.
-                            $values = array($association->id, $lat, $long);
+                            $values = array($association->id, $this->db->quote($association->modified), $lat, $long);
                             $query
                                 ->insert($this->db->quoteName('#__maplatlong'))
                                 ->columns($this->db->quoteName($columns))
@@ -232,7 +228,7 @@ class ModOsmapHelper
 
                     "<button class='verein-finden-button' onclick='goToPopup(" . $name . ")'>".
                     "$user<i class='fas fa-search'></i><i class='fas fa-circle'></i></button>".
-                    "</p><p>$association->email_to</p>"
+                    "</p><p><a href=\"mailto:$association->email_to\">$association->email_to</a></p>"
                 ];
             $table_rows[$name] = $str;
         }
@@ -287,7 +283,7 @@ class ModOsmapHelper
         if ($association->address) $desc.= "<i class=\"fas fa-address-book\"></i> $association->address</br>";
         if ($association->postcode || $association->suburb)  $desc.= "<i class=\"fas fa-address-book\"></i> $association->postcode $association->suburb</br>";
         if ($association->user_id) $desc.= "<i class=\"fas fa-user\"></i> ".$this->getUser($association->user_id)."</br>";
-        if ($association->email_to) $desc.= "<i class=\"fas fa-envelope\"></i> $association->email_to</br>";
+        if ($association->email_to) $desc.= "<i class=\"fas fa-envelope\"></i> <a href=\"mailto:$association->email_to\">$association->email_to</a></br>";
         if ($association->webpage) $desc.= "<i class=\"fas fa-globe\"></i> <a href='$association->webpage' target='_blank'>Zur Webseite</a>";
         return $desc;
     }

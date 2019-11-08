@@ -2,12 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="fd0dda9c-1228-4edd-9959-ca2e42bdf182" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/webServers.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/helper.php" beforeDir="false" afterPath="$PROJECT_DIR$/helper.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mod_osmap.xml" beforeDir="false" afterPath="$PROJECT_DIR$/mod_osmap.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sql/mysql/install.mysql.utf8.sql" beforeDir="false" afterPath="$PROJECT_DIR$/sql/mysql/install.mysql.utf8.sql" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -42,7 +39,7 @@
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/sql/mysql/updates" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="settings.editor.selected.configurable" value="web.server" />
   </component>
@@ -81,6 +78,7 @@
       <workItem from="1572503249252" duration="16536000" />
       <workItem from="1572635684192" duration="2286000" />
       <workItem from="1572695809253" duration="26495000" />
+      <workItem from="1573205248179" duration="2015000" />
     </task>
     <task id="LOCAL-00001" summary="feat: creation of additional markers is now easier">
       <created>1572516848455</created>
