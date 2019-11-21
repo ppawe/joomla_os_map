@@ -4,7 +4,6 @@
     <list default="true" id="fd0dda9c-1228-4edd-9959-ca2e42bdf182" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/helper.php" beforeDir="false" afterPath="$PROJECT_DIR$/helper.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql/mysql/install.mysql.utf8.sql" beforeDir="false" afterPath="$PROJECT_DIR$/sql/mysql/install.mysql.utf8.sql" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -32,6 +31,11 @@
     <select />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1Soxfu98SkT5cTtjFFpzc2lczTC" />
@@ -41,6 +45,7 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="nodejs_package_manager_path" value="npm" />
+    <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
     <property name="settings.editor.selected.configurable" value="web.server" />
   </component>
   <component name="RecentsManager">
@@ -79,6 +84,7 @@
       <workItem from="1572635684192" duration="2286000" />
       <workItem from="1572695809253" duration="26495000" />
       <workItem from="1573205248179" duration="2015000" />
+      <workItem from="1574347751732" duration="2020000" />
     </task>
     <task id="LOCAL-00001" summary="feat: creation of additional markers is now easier">
       <created>1572516848455</created>

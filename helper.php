@@ -252,7 +252,8 @@ class ModOsmapHelper
             $r = $odd?"odd":"even";
             $name = "mpM_". $this->convertName($association->name);
             $str =[
-                    "<p>$association->postcode $association->suburb</p>",
+                    "<p>$association->postcode</p>",
+                    "<p>$association->suburb</p>",
                     "<p>".
                     "<button class='verein-finden-button' onclick='goToPopup(" . $name . ")'>".
                     "$association->name<i class='fas fa-search'></i><i class='fas fa-circle'></i></button>".
@@ -260,7 +261,7 @@ class ModOsmapHelper
                 ];
             $table_rows[$name] = $str;
         }
-        $table_rows['Head'] = ["PLZ", "Verein"];
+        $table_rows['Head'] = ["PLZ", "Ortsname", "Verein"];
         return $table_rows;
 
     }
